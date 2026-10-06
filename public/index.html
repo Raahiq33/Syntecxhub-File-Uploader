@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Syntecxhub File Uploader</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: Arial, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      background: #f4f6f8;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 30px;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #666;
+      margin-bottom: 30px;
+    }
+
+    .upload-box {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 25px;
+    }
+
+    input[type="file"] {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+
+    button {
+      border: none;
+      padding: 10px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .upload-btn {
+      background: #2563eb;
+      color: white;
+    }
+
+    .delete-btn {
+      background: #dc2626;
+      color: white;
+    }
+
+    .view-btn {
+      background: #16a34a;
+      color: white;
+    }
+
+    #message {
+      text-align: center;
+      margin-bottom: 20px;
+      font-weight: bold;
+    }
+
+    .file {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      margin-bottom: 10px;
+    }
+
+    .file-info {
+      overflow: hidden;
+    }
+
+    .filename {
+      font-weight: bold;
+      word-break: break-all;
+    }
+
+    .file-size {
+      color: #777;
+      font-size: 13px;
+      margin-top: 5px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      margin-left: 10px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+
+    <h1>📁 File Uploader</h1>
+
+    <p class="subtitle">
+      Upload and manage your files
+    </p>
+
+    <div class="upload-box">
+      <input type="file" id="fileInput">
+      <button class="upload-btn" onclick="uploadFile()">
+        Upload
+      </button>
+    </div>
+
+    <div id="message"></div>
+
+    <h2>Uploaded Files</h2>
+
+    <div id="fileList">
+      Loading files...
+    </div>
+
+  </div>
+
+  <script>
+
+    const API = "http://localhost:5000";
+
+    async function uploadFile() {
+
+      const input = document.getElementById("fileInput");
+      const message = document.getElementById("message");
+
+      if (!input.files.length) {
+        message.innerText = "Please select a file";
+        return;
+      }
+
+      const formData = new FormData();
+
+      formData.append("file", input.files[0]);
+
+      try {
+
+        message.innerText = "Uploading...";
+
+        const response = await fetch(`${API}/upload`, {
+          method: "POST",
+          body: formData
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          message.innerText = data.message || "Upload failed";
+          return;
+        }
+
+        message.innerText = "✅ File uploaded successfully";
+
+        input.value = "";
+
+        loadFiles();
+
+      } catch (error) {
+
+        message.innerText = "❌ Upload failed";
+
+      }
+    }
+
+
+    async function loadFiles() {
+
+      const fileList = document.getElementById("fileList");
+
+      try {
+
+        const response = await fetch(`${API}/files`);
+
+        const files = await response.json();
+
+        fileList.innerHTML = "";
+
+        if (files.length === 0) {
+          fileList.innerHTML = "<p>No files uploaded.</p>";
+          return;
+        }
+
+        files.forEach(file => {
+
+          const div = document.createElement("div");
+
+          div.className = "file";
+
+          const sizeKB = (file.size / 1024).toFixed(2);
+
+          div.innerHTML = `
+            <div class="file-info">
+              <div class="filename">${file.filename}</div>
+              <div class="file-size">${sizeKB} KB</div>
+            </div>
+
+            <div class="actions">
+
+              <button
+                class="view-btn"
+                onclick="viewFile('${encodeURIComponent(file.filename)}')">
+                View
+              </button>
+
+              <button
+                class="delete-btn"
+                onclick="deleteFile('${file.id}')">
+                Delete
+              </button>
+
+            </div>
+          `;
+
+          fileList.appendChild(div);
+
+        });
+
+      } catch (error) {
+
+        fileList.innerHTML = "❌ Failed to load files";
+
+      }
+    }
+
+
+    function viewFile(filename) {
+
+      window.open(
+        `${API}/files/${filename}`,
+        "_blank"
+      );
+
+    }
+
+
+    async function deleteFile(id) {
+
+      const confirmed = confirm(
+        "Are you sure you want to delete this file?"
+      );
+
+      if (!confirmed) {
+        return;
+      }
+
+      try {
+
+        const response = await fetch(
+          `${API}/files/${id}`,
+          {
+            method: "DELETE"
+          }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          alert(data.message || "Delete failed");
+          return;
+        }
+
+        alert("File deleted successfully");
+
+        loadFiles();
+
+      } catch (error) {
+
+        alert("Delete failed");
+
+      }
+    }
+
+
+    loadFiles();
+
+  </script>
+
+</body>
+</html>
